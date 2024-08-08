@@ -57,23 +57,15 @@ const checkInstancesStatus = async () => {
             InstanceIds: instancesIds
         };
 
-        let count = 0;
-        let isReady = false;
+        const command = new DescribeInstanceStatusCommand(input);
+    
+        const response = await client.send(command);
 
-        while (!isReady && count < 12) {
-            isReady = true;
-            count++;
-
-            const command = new DescribeInstanceStatusCommand(input);
-        
-            const response = await client.send(command);
-
-            response.InstanceStatuses.forEach( instance => {
-                if (instance.InstanceState.Name ==! "running" && instance.InstanceState.Name ==! "stopped") isReady = false;
-            });
-
-            await new Promise(resolve => setTimeout(resolve, 5000)); // ligne magique, c'est quoi ce bordel ?
-        }
+        response.InstanceStatuses.forEach( instance => {
+            if (instance.InstanceState.Name ==! "running" && instance.InstanceState.Name ==! "stopped") {
+                throw new Error("Instances not ready")
+            };
+        });
 
         return true;
     
@@ -83,10 +75,10 @@ const checkInstancesStatus = async () => {
     }
 };
 
-export const startInstances = async (event) => {
+export const startInstances = async (event, context) => {
     try {
         
-        if (!checkInstancesStatus()) throw new Error("Couldn't check status");
+        if (!checkInstancesStatus()) throw new Error("Instances status check failed");
         
         const instancesIds = await getInstancesIds();
 
@@ -103,13 +95,15 @@ export const startInstances = async (event) => {
         const response = await client.send(command);
 
         if (response.$metadata.httpStatusCode ==! 200) {
-            throw new Error("The request failed");
+            throw new Error("The start request failed");
         }
+        
+        const message = "Instances started by " +  event.CallerName;
 
-        return "Instances started";
+        return { StatusCode: 200, Message: message }
 
     } catch (error) {
-        return "" + error;
+        return { statusCode: 500, message: error };
     }
 
 };
