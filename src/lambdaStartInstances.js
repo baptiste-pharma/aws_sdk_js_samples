@@ -28,7 +28,7 @@ const getInstancesIds = async () => {
         }
         
         let instancesIds = [];
-
+        
         response.Reservations.forEach(reservation => {
             reservation.Instances.forEach(instance => {
                 instancesIds.push(instance.InstanceId);
